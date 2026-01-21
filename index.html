@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RWS NOVA AI - Voice Assistant</title>
+    <style>
+        :root {
+            --primary: #22d3ee;
+            --secondary: #3b82f6;
+            --accent: #c084fc;
+            --bg-dark: #020617;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            background: var(--bg-dark);
+            color: white;
+            padding: 20px;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            perspective: 1000px;
+        }
+
+        /* Animated Background Elements */
+        .bg-animation {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%);
+        }
+
+        .stars {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: radial-gradient(white 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.1;
+            animation: moveStars 100s linear infinite;
+        }
+
+        @keyframes moveStars {
+            from { transform: translateY(0); }
+            to { transform: translateY(-50%); }
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            animation: float 10s ease-in-out infinite alternate;
+        }
+
+        .blob1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: var(--primary); }
+        .blob2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: var(--secondary); animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(5%, 5%) scale(1.1); }
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 10;
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            background: linear-gradient(to right, #fff, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.3));
+        }
+
+        .subtitle {
+            color: var(--primary);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            opacity: 0.8;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(34, 211, 238, 0.4);
+        }
+
+        .api-setup-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .api-section {
+            background: rgba(30, 41, 59, 0.4);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .api-section h3 { font-size: 0.8rem; margin-bottom: 10px; opacity: 0.7; }
+
+        .api-input-group { display: flex; flex-direction: column; gap: 8px; }
+
+        input {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(2, 6, 23, 0.5);
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        .save-btn {
+            padding: 8px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover { background: var(--primary); color: var(--bg-dark); }
+
+        .voice-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+        }
+
+        #voiceBtn {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            background: var(--bg-dark);
+            border: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+        }
+
+        #voiceBtn::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+            border-radius: 50%;
+            border: 1px solid var(--primary);
+            opacity: 0.2;
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        #voiceBtn.listening {
+            border-color: #ef4444;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+            transform: scale(1.1);
+        }
+
+        .mic-icon { width: 40px; height: 40px; stroke: var(--primary); stroke-width: 1.5; fill: none; transition: stroke 0.3s; }
+        #voiceBtn.listening .mic-icon { stroke: #ef4444; }
+
+        .pulse-ring {
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            border: 2px solid #ef4444;
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping { 75%, 100% { transform: scale(1.8); opacity: 0; } }
+
+        #statusText {
+            margin-top: 20px;
+            font-family: monospace;
+            color: var(--primary);
+            letter-spacing: 2px;
+        }
+
+        .card-header {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+            padding-bottom: 5px;
+        }
+
+        #transcriptText { color: #94a3b8; font-style: italic; }
+        #responseText { line-height: 1.6; }
+
+        .nasa-title { color: var(--accent); margin-bottom: 15px; font-size: 1.2rem; }
+        .nasa-image { 
+            width: 100%; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .mars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: auto;
+        }
+
+        .footer-text {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #475569;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .hidden { display: none; }
+        
+        /* Loading dots */
+        .typing::after {
+            content: '...';
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="stars"></div>
+        <div class="bg-blob blob1"></div>
+        <div class="bg-blob blob2"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <p class="subtitle">System Active</p>
+            <h1>RWS NOVA AI</h1>
+        </div>
+
+        <div class="api-setup-container">
+            <div class="api-section">
+                <h3>NASA_UPLINK</h3>
+                <div class="api-input-group">
+                    <input type="password" id="nasaKeyInput" placeholder="Enter Access Key">
+                    <button class="save-btn" onclick="saveKey('nasa')">Initialize</button>
+                </div>
+            </div>
+            <div class="api-section">
+                <h3>GEMINI_CORE</h3>
+                <div class="api-input-group">
+                    <input type="password" id="geminiKeyInput" placeholder="Enter Core Key">
+                    <button class="save-btn" onclick="saveKey('gemini')">Connect</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorBox" class="error-message hidden">
+            <strong>SYSTEM_FAILURE:</strong> <span id="errorText"></span>
+        </div>
+
+        <div class="card">
+            <div class="voice-control">
+                <button id="voiceBtn">
+                    <svg id="micIcon" class="mic-icon" viewBox="0 0 24 24">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/>
+                    </svg>
+                    <span id="pulseRing" class="pulse-ring hidden"></span>
+                </button>
+                <p id="statusText">AWAIT_INPUT</p>
+            </div>
+        </div>
+
+        <div id="transcriptBox" class="card hidden">
+            <div class="card-header">USR_INPUT</div>
+            <p id="transcriptText"></p>
+        </div>
+
+        <div id="responseBox" class="card hidden">
+            <div class="card-header" id="responseOrigin">NOVA_OUTPUT</div>
+            <p id="responseText"></p>
+        </div>
+
+        <div id="nasaDataBox" class="card hidden">
+            <div class="card-header">VISUAL_DATA</div>
+            <h3 class="nasa-title" id="nasaTitle"></h3>
+            <div id="nasaContent"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p class="footer-text">Built by RWS NOVA Innovators</p>
+    </footer>
+
+    <script>
+        let NASA_API_KEY = localStorage.getItem('nasa_api_key') || 'DEMO_KEY';
+        let GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
+        
+        let recognition;
+        let isListening = false;
+
+        document.getElementById('nasaKeyInput').value = NASA_API_KEY;
+        document.getElementById('geminiKeyInput').value = GEMINI_API_KEY;
+
+        function saveKey(type) {
+            const elId = type === 'nasa' ? 'nasaKeyInput' : 'geminiKeyInput';
+            const val = document.getElementById(elId).value.trim();
+            if (type === 'nasa') {
+                NASA_API_KEY = val;
+                localStorage.setItem('nasa_api_key', val);
+            } else {
+                GEMINI_API_KEY = val;
+                localStorage.setItem('gemini_api_key', val);
+            }
+            showStatus("CREDENTIALS_ACCEPTED");
+        }
+
+        function showStatus(msg) {
+            const st = document.getElementById('statusText');
+            const original = st.textContent;
+            st.textContent = msg;
+            st.style.color = "#4ade80";
+            setTimeout(() => {
+                st.textContent = isListening ? "LISTENING" : "AWAIT_INPUT";
+                st.style.color = "var(--primary)";
+            }, 2000);
+        }
+
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                showError("BROWSER_INCOMPATIBLE_WITH_VOICE");
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onresult = (e) => {
+                const query = e.results[0][0].transcript;
+                handleQuery(query);
+            };
+            
+            recognition.onend = () => stopUI();
+            recognition.onerror = (e) => { 
+                showError("VOICE_ERR: " + e.error.toUpperCase()); 
+                stopUI(); 
+            };
+        }
+
+        function toggleVoice() {
+            if (isListening) { 
+                recognition.stop(); 
+            } else { 
+                try {
+                    recognition.start(); 
+                    startUI();
+                } catch(e) {
+                    showError("RECOGNITION_INIT_FAILED");
+                }
+            }
+        }
+
+        function startUI() {
+            isListening = true;
+            document.getElementById('voiceBtn').classList.add('listening');
+            document.getElementById('pulseRing').classList.remove('hidden');
+            document.getElementById('statusText').textContent = "LISTENING";
+        }
+
+        function stopUI() {
+            isListening = false;
+            document.getElementById('voiceBtn').classList.remove('listening');
+            document.getElementById('pulseRing').classList.add('hidden');
+            document.getElementById('statusText').textContent = "AWAIT_INPUT";
+        }
+
+        async function handleQuery(query) {
+            document.getElementById('transcriptBox').classList.remove('hidden');
+            document.getElementById('transcriptText').textContent = "> " + query;
+            
+            document.getElementById('responseBox').classList.remove('hidden');
+            document.getElementById('responseText').className = "typing";
+            document.getElementById('responseText').textContent = "PROCESSING";
+
+            const q = query.toLowerCase();
+            
+            if (q.includes('nasa') || q.includes('picture') || q.includes('photo') || q.includes('rover') || q.includes('mars')) {
+                const response = await fetchNASA(query);
+                displayResponse(response.answer, "NASA_INTEL");
+                renderVisuals(response);
+            } else {
+                const answer = await fetchGemini(query);
+                displayResponse(answer, "GEMINI_CORE");
+                document.getElementById('nasaDataBox').classList.add('hidden');
+            }
+        }
+
+        function displayResponse(text, origin) {
+            const respText = document.getElementById('responseText');
+            respText.className = "";
+            respText.textContent = text;
+            document.getElementById('responseOrigin').textContent = origin + ":";
+            speak(text);
+        }
+
+        async function fetchGemini(prompt) {
+            if (!GEMINI_API_KEY) return "ERROR: CORE_KEY_MISSING. Please provide Gemini API key.";
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "Act as a futuristic space assistant named NOVA. Be concise. Question: " + prompt }] }]
+                    })
+                });
+                const data = await res.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                return "CORE_CONNECTION_TIMEOUT. Verify API configuration.";
+            }
+        }
+
+        async function fetchNASA(query) {
+            const q = query.toLowerCase();
+            let url = `https://api.nasa.gov/planetary/apod?api_key=${NASA_API_KEY}`;
+            let type = 'apod';
+
+            if (q.includes('mars') || q.includes('rover')) {
+                url = `https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/latest_photos?api_key=${NASA_API_KEY}`;
+                type = 'mars';
+            }
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (type === 'apod') {
+                    return { type, data, answer: `Decrypted APOD Signal: ${data.title}.` };
+                } else {
+                    return { type, data: data.latest_photos.slice(0, 4), answer: "Visual telemetry received from Curiosity Rover." };
+                }
+            } catch (e) {
+                return { type: 'error', answer: "NASA_UPLINK_OFFLINE." };
+            }
+        }
+
+        function renderVisuals(res) {
+            const box = document.getElementById('nasaDataBox');
+            const content = document.getElementById('nasaContent');
+            const title = document.getElementById('nasaTitle');
+            
+            if (res.type === 'error' || !res.data) { box.classList.add('hidden'); return; }
+            
+            box.classList.remove('hidden');
+            content.innerHTML = '';
+            
+            if (res.type === 'apod') {
+                title.textContent = res.data.title;
+                content.innerHTML = `<img src="${res.data.url}" class="nasa-image"><p style="font-size:0.85rem; color:#94a3b8; line-height:1.5">${res.data.explanation}</p>`;
+            } else if (res.type === 'mars') {
+                title.textContent = "Mars Surface Telemetry";
+                let html = '<div class="mars-grid">';
+                res.data.forEach(p => html += `<img src="${p.img_src}" class="nasa-image">`);
+                html += '</div>';
+                content.innerHTML = html;
+            }
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel(); // Stop current speech
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.1;
+            u.pitch = 0.9; // Slightly deeper, robotic voice
+            window.speechSynthesis.speak(u);
+        }
+
+        function showError(m) {
+            const b = document.getElementById('errorBox');
+            document.getElementById('errorText').textContent = m;
+            b.classList.remove('hidden');
+            setTimeout(() => b.classList.add('hidden'), 5000);
+        }
+
+        document.getElementById('voiceBtn').addEventListener('click', toggleVoice);
+        initSpeech();
+    </script>
+</body>
+</html>
